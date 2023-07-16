@@ -272,6 +272,5 @@ class HandshakeProtocol:
     def get_handshake_messages(self):
         # 在此处获取握手过程中的所有消息数据
         # 在示例中，假设握手过程中所有消息都存储在self.handshake_messages中
-        # 可能需要根据您的实际实现来获取并返回所有消息的连接后的数据
         handshake_data = b"".join(msg.encode() for msg in self.handshake_messages)
         return handshake_data

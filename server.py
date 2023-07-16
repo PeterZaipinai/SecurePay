@@ -35,7 +35,7 @@ def run_server():
 
     # Step 2: Send ServerHello
     server_hello_random = get_server_hello_random()  # Generate ServerHello.random
-    server_hello = server_hello_random + struct.pack('!B', 1)  # Replace 1 with the appropriate value for the selected cipher suite
+    server_hello = server_hello_random + struct.pack('!B', 1)
     client_socket.sendall(struct.pack('!H', len(server_hello)) + server_hello)
 
     # Step 3: Send ServerCertificate
