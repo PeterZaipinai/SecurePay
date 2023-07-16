@@ -9,7 +9,7 @@ from protocols.record_protocol import RecordProtocol
 def run_client():
     # Connect to the server
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect(('localhost', 12345))
+    client_socket.connect(('localhost', 23333))
 
     # Load client private key and server public key
     with open('client_private_key.pem', 'rb') as f:
@@ -20,10 +20,12 @@ def run_client():
     # Start handshake protocol
     handshake_protocol = HandshakeProtocol(client_private_key, server_public_key)
 
-    # Step 1: Send ClientHello
+
+    # Step 1: Generate ClientHello.random and select cipherSuite
     client_hello_random = get_client_hello_random()
-    client_hello = handshake_protocol.process_client_hello(client_hello_random)
-    client_socket.sendall(client_hello.encode())
+    cipher_suite = 1  # Replace 1 with the appropriate value for the selected cipher suite
+    client_hello = client_hello_random + struct.pack('!B', cipher_suite)
+    client_socket.sendall(struct.pack('!H', len(client_hello)) + client_hello)
 
     # Step 2: Receive ServerHello
     server_hello_data = client_socket.recv(1024)

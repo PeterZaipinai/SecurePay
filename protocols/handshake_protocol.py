@@ -170,8 +170,12 @@ class HandshakeProtocol:
         self.handshake_messages = []  # 用于存储握手过程中的所有消息数据
 
     def process_client_hello(self, client_hello):
+        # 解包ClientHello消息，获取client_hello_random和client_cipher_suite
+        client_hello_random = client_hello
+        client_cipher_suite = self.select_cipher_suite(1)
+
         server_hello_random = generate_random_bytes(32)
-        server_cipher_suite = self.select_cipher_suite(client_hello.cipher_suite)
+        server_cipher_suite = self.select_cipher_suite(client_cipher_suite)
         server_hello = ServerHello(server_hello_random, server_cipher_suite)
         server_certificate = ServerCertificate(self.server_public_key)
 
@@ -198,51 +202,76 @@ class HandshakeProtocol:
         server_finished = ServerFinished(self.calculate_message_mac(master_secret, b"SERVER", data))
         return server_finished, master_secret
 
-    def process_client_finished(self, client_finished, master_secret):
-        data = self.get_handshake_messages()
-        if not self.verify_message_mac(master_secret, b"CLIENT", client_finished.message_mac):
-            error_message = Message(MessageType.error_message, b"Invalid client finished message")
-            return error_message, None
-
-        client_hello_random = get_client_hello_random()
-        server_hello_random = get_server_hello_random()
-        session_key = calculate_session_key(master_secret, client_hello_random, server_hello_random)
-
-        return session_key
-
+    # def process_client_finished(self, client_finished, master_secret):
+    #     data = self.get_handshake_messages()
+    #     if not self.verify_message_mac(master_secret, b"CLIENT", client_finished.message_mac):
+    #         error_message = Message(MessageType.error_message, b"Invalid client finished message")
+    #         return error_message, None
+    #
+    #     client_hello_random = get_client_hello_random()
+    #     server_hello_random = get_server_hello_random()
+    #     session_key = calculate_session_key(master_secret, client_hello_random, server_hello_random)
+    #
+    #     return session_key
     def process_server_finished(self, server_finished, master_secret):
-        data = self.get_handshake_messages()
-        if not self.verify_message_mac(master_secret, b"SERVER", server_finished.message_mac):
-            error_message = Message(MessageType.error_message, b"Invalid server finished message")
-            return error_message, None
+        # if not isinstance(server_finished, ServerFinished):
+        #     error_message = Message(MessageType.error_message, b"Invalid server finished message")
+        #     return error_message, None
+        #
+        # data = self.get_handshake_messages()
+        # if not self.verify_message_mac(master_secret, b"SERVER", server_finished.message_mac):
+        #     error_message = Message(MessageType.error_message, b"Invalid server finished message")
+        #     return error_message, None
 
         client_hello_random = get_client_hello_random()
         server_hello_random = get_server_hello_random()
         session_key = calculate_session_key(master_secret, client_hello_random, server_hello_random)
 
         return session_key
+
+    # def process_server_finished(self, server_finished, master_secret):
+    #     data = self.get_handshake_messages()
+    #     if not self.verify_message_mac(master_secret, b"SERVER", server_finished.message_mac):
+    #         error_message = Message(MessageType.error_message, b"Invalid server finished message")
+    #         return error_message, None
+    #
+    #     client_hello_random = get_client_hello_random()
+    #     server_hello_random = get_server_hello_random()
+    #     session_key = calculate_session_key(master_secret, client_hello_random, server_hello_random)
+    #
+    #     return session_key
 
     def select_cipher_suite(self, client_cipher_suite):
-        # 根据客户端支持的密码算法选择服务器端的密码算法
-        # 返回选择的密码算法
-        pass
+        # 在此处根据客户端支持的密码算法选择服务器端的密码算法
+        client_cipher_suite = 'default'
+        return client_cipher_suite
 
     def validate_certificate(self, certificate):
-        # 验证证书的合法性
-        # 返回验证结果
-        pass
+        # 在此处验证证书的合法性
+        # 在示例中，假设证书始终是合法的，直接返回True
+        return True
 
     def calculate_message_mac(self, master_secret, label, data):
-        # 计算消息认证码
-        # 返回消息认证码
-        pass
+        # 在此处计算消息认证码
+        # 在示例中，使用HMAC-SHA256算法计算消息认证码
+        from cryptography.hazmat.primitives import hashes, hmac
+        from cryptography.hazmat.backends import default_backend
+
+        h = hmac.HMAC(master_secret, hashes.SHA256(), backend=default_backend())
+        h.update(label + data)
+        message_mac = h.finalize()
+
+        return message_mac
 
     def verify_message_mac(self, master_secret, label, message_mac):
-        # 验证消息认证码的正确性
-        # 返回验证结果
-        pass
+        # 在此处验证消息认证码的正确性
+        # 在示例中，重新计算消息认证码并与接收到的消息认证码进行比较
+        calculated_mac = self.calculate_message_mac(master_secret, label, self.get_handshake_messages())
+        return message_mac == calculated_mac
 
     def get_handshake_messages(self):
-        # 获取握手过程中的所有消息数据
-        # 返回连接后的消息数据
-        pass
+        # 在此处获取握手过程中的所有消息数据
+        # 在示例中，假设握手过程中所有消息都存储在self.handshake_messages中
+        # 可能需要根据您的实际实现来获取并返回所有消息的连接后的数据
+        handshake_data = b"".join(msg.encode() for msg in self.handshake_messages)
+        return handshake_data

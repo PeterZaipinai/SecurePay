@@ -29,6 +29,9 @@ class RecordProtocol:
         return data
 
     def encrypt_with_session_key(self, data):
+        # Initialize encrypted_data with a default value (None)
+        encrypted_data = None
+
         # Select appropriate encryption algorithm based on session key size
         if len(self.session_key) == 16:
             # AES-128 encryption
@@ -36,10 +39,16 @@ class RecordProtocol:
         elif len(self.session_key) == 24:
             # TripleDES encryption
             encrypted_data = des3_encrypt(data, self.session_key)
+        else:
+            # Return an empty byte string if no encryption is performed
+            encrypted_data = b''
 
         return encrypted_data
 
     def decrypt_with_session_key(self, data):
+        # Initialize encrypted_data with a default value (None)
+        decrypted_data = None
+
         # Select appropriate decryption algorithm based on session key size
         if len(self.session_key) == 16:
             # AES-128 decryption

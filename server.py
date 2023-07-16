@@ -1,6 +1,7 @@
 import socket
 import struct
 
+from crypto.hmac import calculate_master_secret
 from protocols.handshake_protocol import HandshakeProtocol, get_server_hello_random, \
     rsa_encrypt, rsa_sign, generate_master_secret, calculate_session_key
 from protocols.message import Message, MessageType, CertificateVerify, ClientKeyExchange, ServerFinished
@@ -10,7 +11,7 @@ from protocols.record_protocol import RecordProtocol
 def run_server():
     # Create server socket
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(('localhost', 12345))
+    server_socket.bind(('localhost', 23333))
     server_socket.listen(1)
 
     print("Waiting for client connection...")
@@ -33,15 +34,17 @@ def run_server():
     client_hello_random, client_cipher_suite = struct.unpack('!32sB', client_hello)
 
     # Step 2: Send ServerHello
-    server_hello_random = get_server_hello_random()
-    server_hello = handshake_protocol.process_client_hello(client_hello_random, client_cipher_suite)
-    client_socket.sendall(server_hello.encode())
+    server_hello_random = get_server_hello_random()  # Generate ServerHello.random
+    server_hello = server_hello_random + struct.pack('!B', 1)  # Replace 1 with the appropriate value for the selected cipher suite
+    client_socket.sendall(struct.pack('!H', len(server_hello)) + server_hello)
 
     # Step 3: Send ServerCertificate
     with open('server_certificate.pem', 'rb') as f:
         server_certificate = f.read()
-    server_certificate_message = handshake_protocol.process_client_hello(server_certificate)
-    client_socket.sendall(server_certificate_message.encode())
+
+    server_certificate_message = server_certificate
+    certificate_length = len(server_certificate_message)
+    client_socket.sendall(struct.pack('!H', certificate_length) + server_certificate_message)
 
     # Step 4: Send CertificateVerify
     certificate_verify_data = b"Data to sign for CertificateVerify"
@@ -67,7 +70,9 @@ def run_server():
     client_finished = client_finished_data[2:2 + client_finished_length]
 
     # Step 8: Complete handshake protocol and get session key
-    session_key = handshake_protocol.process_server_finished(client_finished)
+    # Calculate master_secret during the handshake process (assumed to be available)
+    master_secret = calculate_master_secret(session_key, client_hello_random, server_hello_random)
+    session_key = handshake_protocol.process_server_finished(client_finished, master_secret)
 
     # Start record protocol
     record_protocol = RecordProtocol(session_key)

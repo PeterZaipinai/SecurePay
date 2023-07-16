@@ -79,9 +79,7 @@ class CertificateVerify:
         self.signature = signature
 
     def encode(self):
-        encoded_signature = self.signature.encode()
-
-        encoded_body = encoded_signature
+        encoded_body = self.signature
         return encoded_body
 
 
@@ -90,7 +88,7 @@ class ClientKeyExchange:
         self.encrypted_shared_secret = encrypted_shared_secret
 
     def encode(self):
-        encoded_encrypted_shared_secret = self.encrypted_shared_secret.encode()
+        encoded_encrypted_shared_secret = self.encrypted_shared_secret
 
         encoded_body = encoded_encrypted_shared_secret
         return encoded_body
@@ -101,10 +99,7 @@ class ServerFinished:
         self.message_mac = message_mac
 
     def encode(self):
-        encoded_message_mac = self.message_mac.encode()
-
-        encoded_body = encoded_message_mac
-        return encoded_body
+        return self.message_mac
 
 
 class ClientFinished:
@@ -112,7 +107,7 @@ class ClientFinished:
         self.message_mac = message_mac
 
     def encode(self):
-        encoded_message_mac = self.message_mac.encode()
+        encoded_message_mac = self.message_mac
 
         encoded_body = encoded_message_mac
         return encoded_body
