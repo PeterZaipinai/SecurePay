@@ -4,6 +4,7 @@ import socket
 import struct
 
 import base64
+import time
 
 from Crypto import Random
 from Crypto.PublicKey import RSA
@@ -13,6 +14,7 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 
 from crypto.crypto_utils import encrypt_with_public_key, decrypt_with_private_key
+from crypto.symmetric_encryption import aes_encrypt, aes_decrypt
 from protocols.handshake_protocol import HandshakeProtocol, get_client_hello_random, calculate_session_key, \
     generate_master_secret, rsa_sign
 from protocols.message import Message, MessageType, ClientFinished, ServerFinished, ClientCertificate, \
@@ -71,12 +73,18 @@ def run_client():
     client_socket.sendall(struct.pack('!H', certificate_length) + client_certificate_message)
     print('client_certificate is ', client_certificate)
 
-    # Step 5: Send CertificateVerify
-    data = handshake_protocol.get_handshake_messages()
-    signature = rsa_sign(data, client_private_key)
-    certificate_verify_message = CertificateVerify(signature)
-    client_socket.sendall(certificate_verify_message.encode())
-    print('certificate_verify is ', signature)
+    # # Step 5: Send CertificateVerify
+    # data = handshake_protocol.get_handshake_messages()
+    # signature = rsa_sign(data, client_private_key)
+    # signature_length = len(signature)
+    # client_socket.sendall(struct.pack('!H', signature_length) + signature)
+    # print('certificate_verify is ', signature)
+
+    client_socket.close()
+    time.sleep(1)
+    # Connect to the server
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect(('localhost', 23333))
 
     # Step 6: Send ClientKeyExchange
     master_secret = generate_master_secret()
@@ -85,52 +93,28 @@ def run_client():
     cipher = PKCS1_cipher.new(RSA.importKey(server_public_key))
     encrypt_text = cipher.encrypt(master_secret)
     print('encrypt_text is ', encrypt_text)
-    client_socket.sendall(pickle.dumps(encrypt_text))
-
-    with open('server_private_key.pem', 'rb') as f:
-        server_private_key = f.read()
-    cipher = PKCS1_cipher.new(RSA.importKey(server_private_key))
-    back_text = cipher.decrypt(encrypt_text, 0)
-    print('back_text is ', back_text)
-
-
-
-    # encrypted_shared_secret = encrypt_with_public_key(server_public_key, master_secret)
-    # client_key_exchange = ClientKeyExchange(encrypted_shared_secret)
-    # client_socket.sendall(client_key_exchange.encode())
-    # print('client_key_exchange is ', client_key_exchange.encode())
-    #
-    # # 从ClientKeyExchange消息中获取客户端发送的master_secret
-    # encrypted_shared_secret = ClientKeyExchange.decode(client_key_exchange).encrypted_shared_secret
-    # print('encrypted_shared_secret is ', encrypted_shared_secret)
-    # with open('server_private_key.pem', 'rb') as f:
-    #     server_private_key = f.read()
-    # master_secret = decrypt_with_private_key(server_private_key, encrypted_shared_secret)
+    share_encrypt_text = pickle.dumps(encrypt_text)
+    secret_length = len(share_encrypt_text)
+    client_socket.sendall(struct.pack('!H', secret_length) + share_encrypt_text)
 
     # Step 7: Receive ServerFinished
     server_finished_data = client_socket.recv(1024)
     server_finished_length, = struct.unpack('!H', server_finished_data[:2])
     server_finished = server_finished_data[2:2 + server_finished_length]
-    print('server_finished is ', server_finished)
 
     # Verify the MAC of the received ServerFinished message
     received_server_finished = ServerFinished(server_finished)
     received_mac = received_server_finished.message_mac
+    print('received_mac is ', received_mac)
     expected_mac = calculate_session_key(master_secret, b"Data for MAC calculation", client_hello_random)
-
-    print(received_mac, '\n', expected_mac)
-
-    if received_mac == expected_mac:
-        print("ServerFinished message is valid and verified.")
-    else:
-        print("ServerFinished message is invalid. Connection may be compromised.")
+    print('expected_mac is ', expected_mac)
 
     # Step 8: Send ClientFinished
     client_finished_data = b"Data for ClientFinished"
     message_mac = calculate_session_key(master_secret, client_finished_data, server_hello_random)
-    client_finished_message = ClientFinished(message_mac)
-    client_socket.sendall(client_finished_message.encode())
-    print('client_finished is ', client_finished_message)
+    mac_length = len(message_mac)
+    client_socket.sendall(struct.pack('!H', mac_length) + message_mac)
+    print('client_finished_message is ', message_mac)
 
     # Step 8: Complete handshake protocol and get session key
     # session_key = handshake_protocol.process_client_certificate(server_certificate)
@@ -140,15 +124,15 @@ def run_client():
 
     # Send encrypted data using RecordProtocol
     plaintext = b"Hello, this is a test message from the client!"
-    record_message = record_protocol.encrypt_data(plaintext, iv)
-    client_socket.sendall(record_message.encode())
+    record_message = aes_encrypt(plaintext, master_secret, iv)
+    record_message_length = len(record_message)
+    client_socket.sendall(struct.pack('!H', record_message_length) + record_message)
 
     # Receive encrypted data from server and decrypt using RecordProtocol
     encrypted_data = client_socket.recv(1024)
     record_message_type, record_message_length = struct.unpack('!BB', encrypted_data[:2])
     encrypted_data = encrypted_data[2:2 + record_message_length]
-    record_message = Message(MessageType(record_message_type), record_message_length, encrypted_data)
-    decrypted_data = record_protocol.decrypt_data(record_message, iv)
+    decrypted_data = aes_decrypt(encrypted_data, master_secret, iv)
     print("Received from server:", decrypted_data.decode())
 
     client_socket.close()
