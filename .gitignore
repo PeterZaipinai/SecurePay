@@ -6,3 +6,7 @@
 *.iml
 out
 gen
+client_private_key.pem
+*.pem
+*.pyc
+*.csr

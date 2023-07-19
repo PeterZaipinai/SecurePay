@@ -88,10 +88,23 @@ class ClientKeyExchange:
         self.encrypted_shared_secret = encrypted_shared_secret
 
     def encode(self):
-        encoded_encrypted_shared_secret = self.encrypted_shared_secret
+        # 将 self.encrypted_shared_secret 转换为字节串
+        encrypted_shared_secret_bytes = self.encrypted_shared_secret
 
-        encoded_body = encoded_encrypted_shared_secret
-        return encoded_body
+        # 使用 struct.pack() 将消息字段打包为字节串
+        client_key_exchange_message = struct.pack('!H', len(encrypted_shared_secret_bytes)) + encrypted_shared_secret_bytes
+
+        return client_key_exchange_message
+
+    @classmethod
+    def decode(cls, data):
+        # 使用 struct.unpack() 解包数据
+        encrypted_shared_secret_length, = struct.unpack('!H', data[:2])
+        encrypted_shared_secret = data[2:2 + encrypted_shared_secret_length]
+
+        # 创建 ClientKeyExchange 对象并返回
+        return cls(encrypted_shared_secret)
+
 
 
 class ServerFinished:
