@@ -6,7 +6,6 @@ from message import MessageType, Message, ClientHello, ServerHello, ServerCertif
 
 
 class Protocol:
-    # ... 省略其他代码 ...
 
     def encode_message(self, message):
         encoder = {

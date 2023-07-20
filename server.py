@@ -149,7 +149,6 @@ def run_server():
     record_message_length = len(record_message)
     client_socket.sendall(struct.pack('!H', record_message_length) + record_message)
 
-
     client_socket.close()
     server_socket.close()
 
